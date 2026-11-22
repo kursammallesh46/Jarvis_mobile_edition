@@ -1,1 +1,112 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS AI</title>
+<style>
+  body {
+    background: #000;
+    color: #0ff;
+    font-family: "Courier New", monospace;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 2.2rem;
+    letter-spacing: 6px;
+    text-shadow: 0 0 15px #0ff;
+    word-break: break-word;
+  }
+  .sub { color: #08a; letter-spacing: 3px; font-size: 0.9rem; }
+  .box {
+    border: 1px solid #0ff;
+    background: #011a1a;
+    padding: 15px;
+    margin: 15px 0;
+    box-shadow: 0 0 10px #0ff4;
+    text-align: left;
+  }
+  #status { text-align: center; color: #0f0; background: #000; }
+  input, textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #011a1a;
+    color: #0ff;
+    border: 1px solid #0ff;
+    padding: 15px;
+    font-size: 1.1rem;
+    font-family: inherit;
+    margin-bottom: 10px;
+  }
+  button {
+    width: 100%;
+    background: #0ff;
+    color: #000;
+    border: none;
+    padding: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #response { min-height: 120px; white-space: pre-wrap; }
+  .foot { color: #066; margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<h1>J.A.R.V.I.S</h1>
+<div class="sub">YOUR PERSONAL AI ASSISTANT</div>
+
+<div id="status" class="box">SYSTEM: READY</div>
+
+<input id="apiKey" type="password" placeholder="Enter API key">
+<input id="userInput" type="text" placeholder="Ask JARVIS anything...">
+<button onclick="sendMessage()">SEND REQUEST</button>
+
+<div id="response" class="box">Hello! I am JARVIS. Waiting for your command...</div>
+
+<div class="foot">J.A.R.V.I.S AI SYSTEM v2.0</div>
+
+<script>
+async function sendMessage() {
+  const key = document.getElementById("apiKey").value.trim();
+  const message = document.getElementById("userInput").value.trim();
+  const status = document.getElementById("status");
+  const out = document.getElementById("response");
+
+  if (!key || !message) {
+    status.textContent = "SYSTEM: ENTER KEY AND MESSAGE";
+    return;
+  }
+  status.textContent = "SYSTEM: THINKING...";
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: message }]
+      })
+    });
+    const data = await res.json();
+    out.textContent = data.content
+      ? data.content.map(c => c.text || "").join("")
+      : "Error: " + JSON.stringify(data);
+    status.textContent = "SYSTEM: READY";
+  } catch (e) {
+    out.textContent = "Error: " + e.message;
+    status.textContent = "SYSTEM: ERROR";
+  }
+}
+</script>
+</body>
+</html>
