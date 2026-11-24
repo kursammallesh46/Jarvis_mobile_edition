@@ -46,4 +46,9 @@ async function handleTools(text){
 
   return null; // Tool match కాకపోతే Gemini Brain కి వెళ్తుంది
 }
+<button id="send">SEND</button>
+<button id="mic-btn">🎙️</button>
+<button id="clear-btn">🧹</button>
+<button id="cam-btn">📷</button>
+<input type="file" id="img-input" accept="image/*" capture="environment" style="display:none">
 
