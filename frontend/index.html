@@ -127,7 +127,7 @@ function handleCommand(t) {
   t = t.toLowerCase();
   t = t.replace(/(\d)\s+(?=\d)/g, "$1");
 
-  if (t.includes("open ")) {
+  if (/\b(open|launch|start|ఓపెన్)\b/.test(t)) {
     for (const name in APPS) {
       if (t.includes(name)) {
         pendingApp = { name, url: "intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=" + APPS[name] + ";end" };
