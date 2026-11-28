@@ -1,1 +1,418 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S 2.0</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; padding:18px; background:radial-gradient(circle at top,#08121f,#000 70%); color:#0ff; font-family:'Orbitron',monospace; min-height:100vh; }
+  h1 { text-align:center; margin:6px 0 2px; font-size:28px; letter-spacing:6px; text-shadow:0 0 14px #0ff; }
+  .sub { text-align:center; font-size:9px; letter-spacing:4px; opacity:.6; }
+  .orb-wrap { display:flex; justify-content:center; margin:22px 0 10px; }
+  .orb { width:170px; height:170px; border-radius:50%; border:2px solid #0ff; box-shadow:0 0 25px #0ff, inset 0 0 25px #0ff; display:flex; align-items:center; justify-content:center; animation:spin 8s linear infinite; }
+  .ring { width:130px; height:130px; border-radius:50%; border:2px solid #0aa; display:flex; align-items:center; justify-content:center; }
+  .core { width:70px; height:70px; border-radius:50%; background:#0ff; box-shadow:0 0 30px #0ff; animation:pulse 2s ease-in-out infinite; }
+  .orb.listen .core { background:#0f0; box-shadow:0 0 35px #0f0; animation-duration:.6s; }
+  .orb.think .core { background:#ff0; box-shadow:0 0 35px #ff0; animation-duration:.4s; }
+  @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }
+  @keyframes spin { to{transform:rotate(360deg);} }
+  #state { text-align:center; font-size:12px; letter-spacing:4px; margin-bottom:16px; }
+  .panel { border:1px solid #0a6; background:rgba(0,40,40,.35); padding:12px; margin-bottom:14px; border-radius:4px; }
+  .panel h3 { margin:0 0 8px; font-size:13px; letter-spacing:2px; }
+  .row { display:flex; justify-content:space-between; font-size:10px; margin:4px 0; }
+  .row b { color:#0f0; }
+  #log { height:190px; overflow-y:auto; font-family:Arial,sans-serif; font-size:13px; }
+  #log div { background:rgba(0,60,60,.35); border-left:3px solid #0ff; padding:7px 9px; margin-bottom:6px; color:#dff; word-wrap:break-word; white-space:pre-wrap; }
+  #log a { display:inline-block; margin-top:6px; padding:8px 12px; background:#0f0; color:#000; font-weight:bold; text-decoration:none; }
+  select, input[type=text] { width:100%; background:#001; border:1px solid #0ff; color:#0ff; padding:12px; font-size:14px; margin-bottom:8px; font-family:Arial,sans-serif; }
+  .btns { display:flex; gap:8px; margin-bottom:8px; }
+  button { flex:1; padding:13px 4px; background:#0ff; color:#000; border:0; font-family:'Orbitron',monospace; font-weight:700; font-size:11px; letter-spacing:1px; }
+  button.small { flex:0 0 52px; font-size:18px; }
+  #hf { width:100%; background:#ff0; margin-bottom:8px; }
+  #live { width:100%; background:#f90; }
+  .help { font-family:Arial,sans-serif; font-size:12px; color:#9cc; line-height:1.6; }
+  .help b { color:#0ff; }
+</style>
+</head>
+<body>
+  <h1>J.A.R.V.I.S</h1>
+  <div class="sub">PERSONAL AI ASSISTANT · v2.0</div>
+
+  <div class="orb-wrap"><div class="orb" id="orb"><div class="ring"><div class="core"></div></div></div></div>
+  <div id="state">SYSTEM READY</div>
+
+  <div class="panel">
+    <h3>SYSTEM DIAGNOSTICS</h3>
+    <div class="row"><span>AI ENGINE</span><b>● OPERATIONAL</b></div>
+    <div class="row"><span>CONNECTION</span><b>● ONLINE</b></div>
+    <div class="row"><span>VOICE INTERFACE</span><b>● READY</b></div>
+    <div class="row"><span>LONG-TERM MEMORY</span><b id="memCount">● ACTIVE</b></div>
+  </div>
+
+  <div class="panel"><div id="log"></div></div>
+
+  <select id="lang">
+    <option value="en-IN">English</option>
+    <option value="te-IN">Telugu</option>
+  </select>
+  <input type="text" id="cmd" placeholder="Enter a command for J.A.R.V.I.S.">
+  <div class="btns">
+    <button id="exec">EXECUTE</button>
+    <button class="small" id="mic">🎤</button>
+    <button class="small" id="cam">📷</button>
+    <button id="clear">CLEAR CHAT</button>
+  </div>
+  <button id="hf">🎧 HANDS-FREE: OFF</button>
+  <button id="live">🌐 LIVE INFO: OFF</button>
+  <input type="file" id="file" accept="image/*" capture="environment" style="display:none">
+
+  <div class="panel" style="margin-top:14px">
+    <h3>COMMANDS</h3>
+    <div class="help">
+      <b>remember</b> I like biryani<br>
+      <b>my name is</b> Mallesh<br>
+      <b>what do you remember</b> / <b>forget everything</b><br>
+      <b>save contact</b> amma 9876543210<br>
+      <b>call</b> amma · <b>whatsapp</b> amma hello<br>
+      <b>show contacts</b> · <b>delete contact</b> amma<br>
+      <b>open</b> youtube · <b>play</b> song name<br>
+      <b>set alarm</b> 6:30 am · <b>set timer</b> 10 minutes
+    </div>
+  </div>
+
+<script>
+const MODEL = "gemini-flash-lite-latest";
+const $ = (id) => document.getElementById(id);
+const APPS = {
+  "whatsapp":"com.whatsapp", "instagram":"com.instagram.android", "snapchat":"com.snapchat.android",
+  "telegram":"org.telegram.messenger", "spotify":"com.spotify.music", "youtube":"com.google.android.youtube",
+  "phonepe":"com.phonepe.app", "google pay":"com.google.android.apps.nbu.paisa.user",
+  "maps":"com.google.android.apps.maps", "gmail":"com.google.android.gm", "facebook":"com.facebook.katana"
+};
+
+function load(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; }
+}
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+let history = load("jarvis_mem", []);
+let facts = load("jarvis_facts", []);
+let contacts = load("jarvis_contacts", {});
+let pendingApp = null;
+let busy = false;
+let handsFree = false;
+let liveInfo = false;
+let rec = null;
+
+function updateMemCount() {
+  $("memCount").textContent = "● " + facts.length + " FACTS · " + Object.keys(contacts).length + " CONTACTS";
+}
+
+function setState(t, cls) {
+  $("state").textContent = t;
+  $("orb").className = "orb " + (cls || "");
+}
+
+function addLog(who, text, link) {
+  const d = document.createElement("div");
+  d.textContent = who + ": " + text;
+  if (link) {
+    const a = document.createElement("a");
+    a.href = link.url;
+    a.textContent = "👉 TAP TO OPEN " + link.name.toUpperCase();
+    d.appendChild(document.createElement("br"));
+    d.appendChild(a);
+  }
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+function getKey() {
+  let k = localStorage.getItem("jarvis_key");
+  if (!k) {
+    k = (prompt("Paste your Gemini API key (saved only in this browser):") || "").trim();
+    if (k) localStorage.setItem("jarvis_key", k);
+  }
+  return k;
+}
+
+function speak(text) {
+  return new Promise((resolve) => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const isTelugu = /[\u0C00-\u0C7F]/.test(text);
+    u.lang = isTelugu ? "te-IN" : ($("lang").value === "te-IN" ? "en-IN" : $("lang").value);
+    const prefix = u.lang.slice(0, 2).toLowerCase();
+    const voices = speechSynthesis.getVoices();
+    const v = voices.find((x) => x.lang.replace("_", "-").toLowerCase() === u.lang.toLowerCase())
+           || voices.find((x) => x.lang.toLowerCase().startsWith(prefix));
+    if (v) u.voice = v;
+    u.onend = resolve;
+    u.onerror = resolve;
+    speechSynthesis.speak(u);
+  });
+}
+
+function findContact(name) {
+  name = name.trim().toLowerCase();
+  if (contacts[name]) return contacts[name];
+  for (const k in contacts) if (name.includes(k) || k.includes(name)) return contacts[k];
+  return null;
+}
+
+function handleCommand(raw) {
+  let t = raw.toLowerCase().trim();
+  t = t.replace(/(\d)\s+(?=\d)/g, "$1");
+
+  let m = t.match(/^(?:remember|gurthupettuko|gurthu pettuko)\s+(?:that\s+)?(.+)/);
+  if (m) {
+    const fact = raw.replace(/^(remember|gurthupettuko|gurthu pettuko)\s+(that\s+)?/i, "").trim();
+    facts.push(fact); save("jarvis_facts", facts); updateMemCount();
+    return "Got it Boss, I will remember that.";
+  }
+  m = t.match(/^my name is\s+(.+)/);
+  if (m) {
+    const nm = raw.replace(/^my name is\s+/i, "").trim();
+    facts = facts.filter((f) => !/^user's name is/i.test(f));
+    facts.push("User's name is " + nm); save("jarvis_facts", facts); updateMemCount();
+    return "Nice to meet you " + nm + ", Boss.";
+  }
+  if (/what do you (remember|know about me)/.test(t)) {
+    return facts.length ? "I remember:\n- " + facts.join("\n- ") : "I don't remember anything yet, Boss.";
+  }
+  if (/^forget everything/.test(t)) {
+    facts = []; save("jarvis_facts", facts); updateMemCount();
+    return "All personal facts erased, Boss.";
+  }
+
+  m = t.match(/^save contact\s+(.+?)\s+(\d{10})$/);
+  if (m) {
+    contacts[m[1].trim()] = m[2]; save("jarvis_contacts", contacts); updateMemCount();
+    return "Saved " + m[1] + " as " + m[2] + ".";
+  }
+  m = t.match(/^delete contact\s+(.+)/);
+  if (m) {
+    delete contacts[m[1].trim()]; save("jarvis_contacts", contacts); updateMemCount();
+    return "Deleted " + m[1] + ".";
+  }
+  if (/^show contacts|^list contacts/.test(t)) {
+    const names = Object.keys(contacts);
+    return names.length ? "Contacts:\n" + names.map((n) => n + ": " + contacts[n]).join("\n") : "No contacts saved yet. Say: save contact amma 9876543210";
+  }
+
+  const al = t.match(/alarm.*?(\d{1,2})(?:[:.\s](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
+  if (al) {
+    let h = parseInt(al[1]);
+    const mi = parseInt(al[2] || "0");
+    const ap = (al[3] || "").replace(/\./g, "");
+    if (ap === "pm" && h < 12) h += 12;
+    if (ap === "am" && h === 12) h = 0;
+    pendingApp = { name: "alarm", url: "intent:#Intent;action=android.intent.action.SET_ALARM;i.android.intent.extra.alarm.HOUR=" + h + ";i.android.intent.extra.alarm.MINUTES=" + mi + ";end" };
+    return "Alarm ready for " + h + ":" + String(mi).padStart(2, "0") + ", Boss.";
+  }
+  const tm = t.match(/timer.*?(\d+)\s*(second|sec|minute|min|hour)/);
+  if (tm) {
+    let s = parseInt(tm[1]);
+    if (tm[2].startsWith("min")) s *= 60;
+    if (tm[2].startsWith("hour")) s *= 3600;
+    pendingApp = { name: "timer", url: "intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=" + s + ";end" };
+    return "Timer ready, Boss.";
+  }
+
+  m = t.match(/^whatsapp\s+(\d{10})\s+(.+)/);
+  if (m) {
+    pendingApp = { name: "WhatsApp chat", url: "https://wa.me/91" + m[1] + "?text=" + encodeURIComponent(m[2]) };
+    return "WhatsApp message ready.";
+  }
+  m = t.match(/^whatsapp\s+(\S+)\s+(.+)/);
+  if (m && findContact(m[1])) {
+    pendingApp = { name: "WhatsApp " + m[1], url: "https://wa.me/91" + findContact(m[1]) + "?text=" + encodeURIComponent(m[2]) };
+    return "WhatsApp message to " + m[1] + " ready.";
+  }
+
+  m = t.match(/^(?:call|phone|dial)\s+(\d{10})/);
+  if (m) { pendingApp = { name: "call", url: "tel:" + m[1] }; return "Calling " + m[1]; }
+  m = t.match(/^(?:call|phone|dial)\s+(.+)/);
+  if (m) {
+    const num = findContact(m[1]);
+    if (num) { pendingApp = { name: "call " + m[1], url: "tel:" + num }; return "Calling " + m[1] + ", Boss."; }
+    return "I don't have " + m[1] + " saved. Say: save contact " + m[1] + " 9876543210";
+  }
+
+  if (/\b(open|launch|start|ఓపెన్)\b/.test(t)) {
+    for (const name in APPS) {
+      if (t.includes(name)) {
+        pendingApp = { name, url: "intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=" + APPS[name] + ";end" };
+        return "Opening " + name + ", Boss.";
+      }
+    }
+  }
+
+  if (t.startsWith("search ")) {
+    const q = t.replace("search ", "");
+    pendingApp = { name: "google", url: "https://google.com/search?q=" + encodeURIComponent(q) };
+    return "Searching " + q;
+  }
+  if (t.startsWith("play ")) {
+    const q = t.replace("play ", "").replace(" on youtube", "");
+    pendingApp = { name: "youtube", url: "https://youtube.com/results?search_query=" + encodeURIComponent(q) };
+    return "Playing " + q;
+  }
+  if (/\btime\b/.test(t) && !t.includes("timer") && t.split(" ").length <= 5) return "It is " + new Date().toLocaleTimeString();
+  if (/\b(date|today's date)\b/.test(t) && t.split(" ").length <= 5) return "Today is " + new Date().toDateString();
+  return null;
+}
+
+function systemPrompt() {
+  let p = "You are J.A.R.V.I.S 2.0, a smart personal assistant. Call the user Boss. Keep answers short, 2 sentences max. " +
+          "If the user writes in Telugu script, reply in Telugu script. If the user writes Telugu in English letters, reply in the same style. Otherwise reply in English.";
+  if (facts.length) p += "\nThings you know about the user:\n- " + facts.join("\n- ");
+  const names = Object.keys(contacts);
+  if (names.length) p += "\nSaved contacts: " + names.join(", ") + ".";
+  return p;
+}
+
+async function askGemini(text, image) {
+  const key = getKey();
+  if (!key) return "API key pettu macha!";
+  const parts = [{ text }];
+  if (image) parts.push({ inlineData: { mimeType: image.type, data: image.data } });
+  history.push({ role: "user", parts: [{ text }] });
+  try {
+    const body = {
+      systemInstruction: { parts: [{ text: systemPrompt() }] },
+      contents: history.slice(0, -1).concat([{ role: "user", parts }])
+    };
+    if (liveInfo) body.tools = [{ google_search: {} }];
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent",
+      { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body) }
+    );
+    const data = await res.json();
+    if (data.error) {
+      history.pop();
+      if (/quota|rate/i.test(data.error.message)) {
+        return liveInfo
+          ? "Boss, quota limit. LIVE INFO off chesi try cheyyi, leda konchem sepu aagu."
+          : "Boss, free limit ayipoyindi. Konchem sepu aagi try cheyyi.";
+      }
+      return "Error: " + data.error.message;
+    }
+    const reply = data.candidates[0].content.parts.map((p) => p.text || "").join("").trim();
+    history.push({ role: "model", parts: [{ text: reply }] });
+    save("jarvis_mem", history.slice(-30));
+    return reply;
+  } catch (e) {
+    history.pop();
+    return "Error: " + e.message;
+  }
+}
+
+async function run(text, image) {
+  if (!text || busy) return;
+  busy = true;
+  $("cmd").value = "";
+  addLog("YOU", text);
+  setState("PROCESSING", "think");
+  let reply = image ? null : handleCommand(text);
+  if (!reply) reply = await askGemini(text, image);
+  addLog("J.A.R.V.I.S", reply, pendingApp);
+  pendingApp = null;
+  setState("SPEAKING", "listen");
+  await speak(reply);
+  setState("SYSTEM READY");
+  busy = false;
+  if (handsFree) startRec();
+}
+
+$("exec").onclick = () => run($("cmd").value.trim());
+$("cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") $("exec").click(); });
+
+$("clear").onclick = () => {
+  history = [];
+  localStorage.removeItem("jarvis_mem");
+  $("log").innerHTML = "";
+  addLog("J.A.R.V.I.S", "Chat cleared, Boss. Your saved facts and contacts are safe.");
+};
+
+$("live").onclick = () => {
+  liveInfo = !liveInfo;
+  $("live").textContent = liveInfo ? "🌐 LIVE INFO: ON" : "🌐 LIVE INFO: OFF";
+  addLog("J.A.R.V.I.S", liveInfo ? "Live info ON. Weather, news, scores adugochu. Quota error vaste OFF cheyyi." : "Live info OFF.");
+};
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function startRec() {
+  if (!rec || busy) return;
+  try {
+    rec.lang = $("lang").value;
+    rec.start();
+    if (handsFree) setState("SAY 'JARVIS'...", "listen");
+  } catch (e) {}
+}
+
+if (!SR) {
+  $("mic").disabled = true;
+  $("hf").disabled = true;
+} else {
+  rec = new SR();
+  rec.onresult = (e) => {
+    const t = e.results[0][0].transcript;
+    if (!handsFree) return run(t);
+    if (!/jarvis|జార్విస్/i.test(t)) return;
+    const cmd = t.replace(/jarvis|జార్విస్/ig, "").trim();
+    if (cmd) run(cmd);
+    else {
+      busy = true;
+      speak("Yes Boss?").then(() => { busy = false; startRec(); });
+    }
+  };
+  rec.onend = () => {
+    if (handsFree && !busy) setTimeout(startRec, 300);
+    else if (!busy) setState("SYSTEM READY");
+  };
+  rec.onerror = (e) => {
+    if (e.error !== "no-speech" && e.error !== "aborted") setState("MIC ERROR: " + e.error);
+  };
+
+  $("mic").onclick = () => {
+    handsFree = false;
+    $("hf").textContent = "🎧 HANDS-FREE: OFF";
+    speechSynthesis.cancel();
+    setState("LISTENING", "listen");
+    startRec();
+  };
+
+  $("hf").onclick = () => {
+    handsFree = !handsFree;
+    $("hf").textContent = handsFree ? "🎧 HANDS-FREE: ON" : "🎧 HANDS-FREE: OFF";
+    if (handsFree) startRec();
+    else { try { rec.stop(); } catch (e) {} setState("SYSTEM READY"); }
+  };
+}
+
+$("cam").onclick = () => $("file").click();
+$("file").onchange = () => {
+  const f = $("file").files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const data = reader.result.split(",")[1];
+    run($("cmd").value.trim() || "Describe this image briefly.", { type: f.type, data });
+  };
+  reader.readAsDataURL(f);
+  $("file").value = "";
+};
+
+updateMemCount();
+addLog("J.A.R.V.I.S", "Hello Boss! Jarvis 2.0 online. Waiting for your command.");
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
